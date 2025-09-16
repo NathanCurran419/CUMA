@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Allow app-private Pictures directory -->
+    <external-files-path
+        name="my_images"
+        path="Pictures/" />
+
+    <!-- Keep cache path if you still use it -->
+    <cache-path
+        name="images"
+        path="." />
+</paths>
