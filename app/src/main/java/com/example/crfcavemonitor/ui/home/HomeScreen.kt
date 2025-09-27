@@ -44,7 +44,7 @@ fun ReportItem(report: Report, onClick: () -> Unit) {
             .padding(16.dp)
     ) {
         Text(
-            text = "${report.caveName} (MSS #${report.mssAcc})", // show cave + MSS #
+            text = "${report.caveName} (${report.mssAcc})",
             style = MaterialTheme.typography.titleLarge
         )
         Text(

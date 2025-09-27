@@ -30,8 +30,24 @@ fun VisitDetailsStep(
     val context = LocalContext.current
     val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
     val openDatePicker = remember { mutableStateOf(false) }
+
+    // Rationale dropdown (existing)
     var rationaleExpanded by remember { mutableStateOf(false) }
     val rationaleSuggestions = listOf("Visitation", "WNS/bats", "Gen Bio", "Cultural")
+
+    // NEW: Organization dropdown state + options
+    var orgExpanded by remember { mutableStateOf(false) }
+    val organizationOptions = remember {
+        listOf(
+            "Cave Research Foundation",
+            "Missouri Speleological Survey",
+            "Springfield Plateau Grotto",
+            "Kansas City Area Grotto",
+            "Meramec Valley Grotto",
+            "CAIRN"
+        )
+    }
+
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
 
@@ -93,6 +109,7 @@ fun VisitDetailsStep(
             enabled = false
         )
 
+        // Rationale (existing searchable dropdown)
         ExposedDropdownMenuBox(
             expanded = rationaleExpanded,
             onExpandedChange = { rationaleExpanded = !rationaleExpanded }
@@ -104,24 +121,27 @@ fun VisitDetailsStep(
                     rationaleExpanded = true
                 },
                 label = { Text("Rationale") },
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
-                singleLine = true
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
+                singleLine = true,
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = rationaleExpanded) }
             )
             ExposedDropdownMenu(
                 expanded = rationaleExpanded,
                 onDismissRequest = { rationaleExpanded = false }
             ) {
-                rationaleSuggestions.filter {
-                    it.contains(initialData.rationale, ignoreCase = true) && it != initialData.rationale
-                }.forEach { suggestion ->
-                    DropdownMenuItem(
-                        text = { Text(suggestion) },
-                        onClick = {
-                            onDetailsChanged(initialData.copy(rationale = suggestion))
-                            rationaleExpanded = false
-                        }
-                    )
-                }
+                rationaleSuggestions
+                    .filter { it.contains(initialData.rationale, ignoreCase = true) && it != initialData.rationale }
+                    .forEach { suggestion ->
+                        DropdownMenuItem(
+                            text = { Text(suggestion) },
+                            onClick = {
+                                onDetailsChanged(initialData.copy(rationale = suggestion))
+                                rationaleExpanded = false
+                            }
+                        )
+                    }
             }
         }
 
@@ -131,18 +151,54 @@ fun VisitDetailsStep(
             label = { Text("Area Monitored") },
             modifier = Modifier.fillMaxWidth()
         )
-        OutlinedTextField(
-            value = initialData.organization,
-            onValueChange = { onDetailsChanged(initialData.copy(organization = it)) },
-            label = { Text("Organization") },
-            modifier = Modifier.fillMaxWidth()
-        )
+
+        // ────────────────────────────────────────────────────────────────
+        // NEW: Organization searchable dropdown / recommendation menu
+        // ────────────────────────────────────────────────────────────────
+        ExposedDropdownMenuBox(
+            expanded = orgExpanded,
+            onExpandedChange = { orgExpanded = !orgExpanded }
+        ) {
+            OutlinedTextField(
+                value = initialData.organization,
+                onValueChange = {
+                    onDetailsChanged(initialData.copy(organization = it))
+                    orgExpanded = true // open and filter as user types
+                },
+                label = { Text("Organization") },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
+                singleLine = true,
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = orgExpanded) }
+            )
+            ExposedDropdownMenu(
+                expanded = orgExpanded,
+                onDismissRequest = { orgExpanded = false }
+            ) {
+                val filtered = organizationOptions.filter {
+                    val q = initialData.organization.trim()
+                    q.isBlank() || it.contains(q, ignoreCase = true)
+                }
+                filtered.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            onDetailsChanged(initialData.copy(organization = option))
+                            orgExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+
         OutlinedTextField(
             value = initialData.monitoredBy,
             onValueChange = { onDetailsChanged(initialData.copy(monitoredBy = it)) },
             label = { Text("Monitored By") },
             modifier = Modifier.fillMaxWidth()
         )
+
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             OutlinedTextField(
                 value = initialData.location,
@@ -151,13 +207,16 @@ fun VisitDetailsStep(
                 modifier = Modifier.weight(1f)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Button(onClick = {
-                if (locationPermissionState.status.isGranted) {
-                    fetchLocation()
-                } else {
-                    locationPermissionState.launchPermissionRequest()
-                }
-            }, modifier = Modifier.alignByBaseline()) {
+            Button(
+                onClick = {
+                    if (locationPermissionState.status.isGranted) {
+                        fetchLocation()
+                    } else {
+                        locationPermissionState.launchPermissionRequest()
+                    }
+                },
+                modifier = Modifier.alignByBaseline()
+            ) {
                 Text("Use GPS")
             }
         }

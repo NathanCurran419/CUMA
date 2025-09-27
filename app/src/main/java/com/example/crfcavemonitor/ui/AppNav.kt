@@ -1,9 +1,12 @@
 package com.example.crfcavemonitor.ui
 
+import android.app.Application
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.crfcavemonitor.data.Photo
@@ -12,6 +15,10 @@ import com.example.crfcavemonitor.data.SpeciesCount
 import com.example.crfcavemonitor.ui.home.HomeScreen
 import com.example.crfcavemonitor.ui.report.ReportDetailScreen
 import com.example.crfcavemonitor.ui.report.ReportFormScreen
+
+// ---- Export screen route helpers ----
+private const val ROUTE_EXPORT = "export/{reportId}"
+private fun routeExport(reportId: Long) = "export/$reportId"
 
 @Composable
 fun AppNav(
@@ -98,11 +105,29 @@ fun AppNav(
                     onEdit = { r ->
                         navController.navigate("reportForm/${r.id}")
                     },
-                    onExport = { _ ->
-                        // TODO: implement PDF export later
+                    onExport = { r ->
+                        // Navigate to the export dialog for this report
+                        navController.navigate(routeExport(r.id))
                     }
                 )
             }
+        }
+
+        // --- Export dialog destination (modal over current screen) ---
+        dialog(
+            route = ROUTE_EXPORT,
+            arguments = listOf(navArgument("reportId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val reportId = backStackEntry.arguments!!.getLong("reportId")
+            val app = LocalContext.current.applicationContext as Application
+
+            // Provided by your export module:
+            // ExportDialogRoute(reportId, app, onDismiss)
+            com.example.crfcavemonitor.export.ExportDialogRoute(
+                reportId = reportId,
+                app = app,
+                onDismiss = { navController.popBackStack() }
+            )
         }
     }
 }

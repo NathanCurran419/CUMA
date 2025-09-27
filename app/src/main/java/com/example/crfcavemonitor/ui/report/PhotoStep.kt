@@ -33,12 +33,19 @@ fun PhotoStepComponent(
     onPhotoListChanged: (List<PhotoItem>) -> Unit
 ) {
     val context = LocalContext.current
+
+    // Selection / editing state
     var selectedPhoto by remember { mutableStateOf<PhotoItem?>(null) }
+    var editMode by remember { mutableStateOf(false) }
+    var editCaption by remember { mutableStateOf("") }
+
+    // Add-from-gallery/camera state
     var showCaptionDialog by remember { mutableStateOf(false) }
     var pendingUri by remember { mutableStateOf<Uri?>(null) }
     var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
-    var editMode by remember { mutableStateOf(false) }
-    var editCaption by remember { mutableStateOf("") }
+
+    // Delete confirmation state
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
@@ -75,6 +82,7 @@ fun PhotoStepComponent(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (selectedPhoto != null) {
+            // Detail view of a single photo
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -88,6 +96,7 @@ fun PhotoStepComponent(
                         .fillMaxWidth()
                         .weight(1f)
                 )
+
                 if (editMode) {
                     OutlinedTextField(
                         value = editCaption,
@@ -97,20 +106,25 @@ fun PhotoStepComponent(
                             .fillMaxWidth()
                             .padding(vertical = 8.dp)
                     )
-                    Button(onClick = {
-                        selectedPhoto?.let { current ->
-                            val updatedList = photoList.map {
-                                if (it.uri == current.uri) it.copy(caption = editCaption) else it
+                    Button(
+                        onClick = {
+                            selectedPhoto?.let { current ->
+                                val updatedList = photoList.map {
+                                    if (it.uri == current.uri) it.copy(caption = editCaption) else it
+                                }
+                                onPhotoListChanged(updatedList)
+                                selectedPhoto = current.copy(caption = editCaption)
+                                editMode = false
                             }
-                            onPhotoListChanged(updatedList)
-                            selectedPhoto = current.copy(caption = editCaption)
-                            editMode = false
                         }
-                    }) {
+                    ) {
                         Text("Save Caption")
                     }
                 } else {
-                    Text(text = selectedPhoto!!.caption, style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = selectedPhoto!!.caption,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -122,11 +136,7 @@ fun PhotoStepComponent(
                         }) {
                             Text("Edit Caption")
                         }
-                        Button(onClick = {
-                            val updatedList = photoList.filterNot { it.uri == selectedPhoto!!.uri }
-                            onPhotoListChanged(updatedList)
-                            selectedPhoto = null
-                        }) {
+                        Button(onClick = { showDeleteConfirm = true }) {
                             Text("Delete Photo")
                         }
                     }
@@ -135,8 +145,50 @@ fun PhotoStepComponent(
                         Text("Back to Gallery")
                     }
                 }
+
+                // Delete confirmation dialog (only in detail view)
+                if (showDeleteConfirm && selectedPhoto != null) {
+                    AlertDialog(
+                        onDismissRequest = { showDeleteConfirm = false },
+                        title = { Text("Delete photo?") },
+                        text = {
+                            Column {
+                                Text("This will remove the photo and its caption from this report.")
+                                Spacer(Modifier.height(8.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Image(
+                                        painter = rememberAsyncImagePainter(selectedPhoto!!.uri),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(56.dp)
+                                    )
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(
+                                        selectedPhoto!!.caption.ifBlank { "(No caption)" },
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    val updatedList = photoList.filterNot { it.uri == selectedPhoto!!.uri }
+                                    onPhotoListChanged(updatedList)
+                                    selectedPhoto = null
+                                    showDeleteConfirm = false
+                                }
+                            ) { Text("Delete") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDeleteConfirm = false }) {
+                                Text("Cancel")
+                            }
+                        }
+                    )
+                }
             }
         } else {
+            // Grid + add buttons
             Column(modifier = Modifier.fillMaxSize()) {
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(128.dp),
@@ -157,6 +209,7 @@ fun PhotoStepComponent(
                     }
                 }
 
+                // Caption dialog for newly added image (gallery or camera)
                 if (showCaptionDialog && pendingUri != null) {
                     var captionText by remember { mutableStateOf("") }
 

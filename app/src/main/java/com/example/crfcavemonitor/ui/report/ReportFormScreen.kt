@@ -1,3 +1,4 @@
+// File: ui.report/HomeScreen.kt  (contains ReportFormScreen)
 package com.example.crfcavemonitor.ui.report
 
 import androidx.compose.runtime.*
@@ -50,11 +51,11 @@ fun ReportFormScreen(
     var speciesList by remember { mutableStateOf(existingSpecies) }
     LaunchedEffect(existingSpecies) { speciesList = existingSpecies }
 
-    // ✅ Photo list state (always updated from PhotoStepComponent)
+    // Photo list (kept in Compose state)
     var photoList by remember { mutableStateOf(existingPhotos.map { PhotoItem(it.uri.toUri(), it.caption) }) }
     LaunchedEffect(existingPhotos) { photoList = existingPhotos.map { PhotoItem(it.uri.toUri(), it.caption) } }
 
-    // Monitoring data
+    // Use / Impact data
     var useMonitoringData by remember {
         mutableStateOf(
             if (existingReport != null) {
@@ -78,15 +79,22 @@ fun ReportFormScreen(
         )
     }
 
+    // 🔔 Dialog state
+    var showSaveConfirm by remember { mutableStateOf(false) }
+    var showExitConfirm by remember { mutableStateOf(false) }
+    var showMissingCaveName by remember { mutableStateOf(false) } // << NEW: missing cave name dialog
+
     Scaffold(
         bottomBar = {
             NavigationBar {
+                // Home (confirm exit without saving)
                 NavigationBarItem(
                     selected = false,
-                    onClick = onBackToHome,
+                    onClick = { showExitConfirm = true },
                     icon = { Icon(painterResource(id = R.drawable.ic_home), contentDescription = "Home") },
                     label = { Text("Home") }
                 )
+
                 NavigationBarItem(
                     selected = step == 0,
                     onClick = { step = 0 },
@@ -111,10 +119,93 @@ fun ReportFormScreen(
                     icon = { Icon(painterResource(id = R.drawable.ic_use_monitoring), contentDescription = "Use") },
                     label = { Text("Use") }
                 )
+
+                // Save: validate Cave Name before showing confirm dialog
                 NavigationBarItem(
                     selected = false,
                     onClick = {
-                        // Build Report
+                        if (visitDetails.caveName.isBlank()) {
+                            showMissingCaveName = true
+                        } else {
+                            showSaveConfirm = true
+                        }
+                    },
+                    icon = { Icon(painterResource(id = R.drawable.ic_save_form), contentDescription = "Save") },
+                    label = { Text("Save") }
+                )
+            }
+        }
+    ) { padding ->
+        Column(modifier = Modifier.padding(padding)) {
+            when (step) {
+                0 -> VisitDetailsStep(
+                    onDetailsChanged = { visitDetails = it },
+                    initialData = visitDetails
+                )
+                1 -> BioInventoryStep(
+                    speciesList = speciesList,
+                    onSpeciesListChanged = { speciesList = it }
+                )
+                2 -> PhotoStepComponent(
+                    photoList = photoList,
+                    onPhotoListChanged = { updated -> photoList = updated }
+                )
+                3 -> ImpactAssessmentStep(
+                    formData = useMonitoringData,
+                    onFormDataChanged = { useMonitoringData = it }
+                )
+            }
+        }
+    }
+
+    // ============================
+    //          Dialogs
+    // ============================
+
+    // Exit to Home (without saving)
+    if (showExitConfirm) {
+        AlertDialog(
+            onDismissRequest = { showExitConfirm = false },
+            title = { Text("Exit to Home") },
+            text = { Text("Are you sure you want to exit to home without saving?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showExitConfirm = false
+                        onBackToHome()
+                    }
+                ) { Text("Exit") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // 🚫 Missing Cave Name
+    if (showMissingCaveName) {
+        AlertDialog(
+            onDismissRequest = { showMissingCaveName = false },
+            title = { Text("Missing Cave Name") },
+            text = { Text("Must enter a cave name to save") },
+            confirmButton = {
+                TextButton(onClick = { showMissingCaveName = false }) {
+                    Text("Okay")
+                }
+            }
+        )
+    }
+
+    // Save Report (only shown if cave name is not blank)
+    if (showSaveConfirm) {
+        AlertDialog(
+            onDismissRequest = { showSaveConfirm = false },
+            title = { Text("Save Report") },
+            text = { Text("Are you sure you want to save report?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Build Report from current form state
                         val report = Report(
                             id = existingReport?.id ?: 0,
                             mssAcc = visitDetails.mssAcc,
@@ -139,12 +230,12 @@ fun ReportFormScreen(
                             location = visitDetails.location
                         )
 
-                        // Species (IDs preserved)
+                        // Preserve Species IDs
                         val speciesWithIds = speciesList.map { sp ->
                             sp.copy(id = sp.id, reportId = report.id, notes = sp.notes)
                         }
 
-                        // Photos (use current photoList, not existingPhotos)
+                        // Photos from current state, preserve IDs/timestamps if existing
                         val photosWithIds = photoList.map { item ->
                             val existing = existingPhotos.find {
                                 it.uri == item.uri.toString() && it.caption == item.caption
@@ -159,33 +250,14 @@ fun ReportFormScreen(
                         }
 
                         onSubmit(report, speciesWithIds, photosWithIds)
+                        showSaveConfirm = false
                         onBackToHome()
-                    },
-                    icon = { Icon(painterResource(id = R.drawable.ic_save_form), contentDescription = "Save") },
-                    label = { Text("Save") }
-                )
+                    }
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSaveConfirm = false }) { Text("Cancel") }
             }
-        }
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
-            when (step) {
-                0 -> VisitDetailsStep(
-                    onDetailsChanged = { visitDetails = it },
-                    initialData = visitDetails
-                )
-                1 -> BioInventoryStep(
-                    speciesList = speciesList,
-                    onSpeciesListChanged = { speciesList = it }
-                )
-                2 -> PhotoStepComponent(
-                    photoList = photoList,
-                    onPhotoListChanged = { updated -> photoList = updated } // keep state updated
-                )
-                3 -> ImpactAssessmentStep(
-                    formData = useMonitoringData,
-                    onFormDataChanged = { useMonitoringData = it }
-                )
-            }
-        }
+        )
     }
 }

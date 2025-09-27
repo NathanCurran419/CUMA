@@ -1,3 +1,5 @@
+// data/SpeciesCount.kt
+
 package com.example.crfcavemonitor.data
 
 import androidx.room.Entity
@@ -9,6 +11,5 @@ data class SpeciesCount(
     val reportId: Long,
     val speciesName: String,
     val count: Int,
-    val tentative: Boolean,
     val notes: String
 )

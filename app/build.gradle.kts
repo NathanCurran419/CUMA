@@ -15,7 +15,6 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -42,15 +41,16 @@ android {
         compose = true
     }
 
+    // Keep this aligned with your Compose BOM; 1.5.11 works,
+    // but if you update the BOM, bump this accordingly (e.g., 1.5.14).
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.11" // Replace with your Compose version
+        kotlinCompilerExtensionVersion = "1.5.11"
     }
 }
 
 dependencies {
-    // Compose
+    // --- Compose core (via your version catalog + BOM) ---
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -61,14 +61,18 @@ dependencies {
     // Navigation for Compose
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
-    // Room (KTX + Kapt)
+    // --- Lifecycle + Compose integration (needed for collectAsState, viewModel(), etc.) ---
+    // Use the 2.8.x line for Compose interop
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+    // (Keep KTX if you use it elsewhere; align version to 2.8.6)
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.6")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
+
+    // Room
     implementation("androidx.room:room-runtime:2.6.1")
     kapt("androidx.room:room-compiler:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
-
-    // Lifecycle ViewModel
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
 
     // CameraX
     implementation("androidx.camera:camera-core:1.3.2")
@@ -76,13 +80,14 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.3.2")
     implementation("androidx.camera:camera-view:1.3.2")
 
-    // Coil for photo stuff
+    // Coil
     implementation("io.coil-kt:coil-compose:2.4.0")
 
-    // Optional: iText PDF
+    // PDF note: you don't need iText for our simple PDF export.
+    // If you keep iText for future advanced PDFs, leave this:
     implementation("com.itextpdf:itext7-core:8.0.3")
 
-    // Location
+    // Location + permissions
     implementation("com.google.android.gms:play-services-location:21.0.1")
     implementation("com.google.accompanist:accompanist-permissions:0.33.0-alpha")
 

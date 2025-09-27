@@ -1,3 +1,5 @@
+// data/Report.kt
+
 package com.example.crfcavemonitor.data
 
 import androidx.room.*
@@ -16,4 +18,7 @@ interface ReportDao {
 
     @Delete
     suspend fun delete(report: Report)
+
+    @Query("SELECT * FROM Report WHERE id = :id")
+    suspend fun getById(id: Long): Report
 }

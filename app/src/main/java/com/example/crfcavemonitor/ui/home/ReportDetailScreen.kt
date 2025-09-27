@@ -28,7 +28,7 @@ fun ReportDetailScreen(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Report") },
             text = {
-                Text("Are you sure you want to delete '${report.caveName} (MSS #${report.mssAcc})'?")
+                Text("Are you sure you want to delete '${report.caveName} (${report.mssAcc})'?")
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -95,7 +95,7 @@ fun ReportDetailScreen(
                 .fillMaxSize()
         ) {
             Text(
-                "${report.caveName} (MSS #${report.mssAcc})",
+                "${report.caveName} (${report.mssAcc})",
                 style = MaterialTheme.typography.headlineSmall
             )
             Text("Date: ${dateFormatter.format(report.monitorDate)}")

@@ -1,3 +1,5 @@
+// data/Photo.kt
+
 package com.example.crfcavemonitor.data
 
 import androidx.room.Entity

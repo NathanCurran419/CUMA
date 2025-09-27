@@ -41,7 +41,6 @@ fun BioInventoryStep(
                         reportId = 0,
                         speciesName = "",
                         count = 0,
-                        tentative = false,
                         notes = "" // ensure new rows always have notes
                     )
                 )
