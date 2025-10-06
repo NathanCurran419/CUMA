@@ -43,6 +43,7 @@ class ExportRepository(
             "currentDisturbance" to report.currentDisturbance,
             "potentialDisturbance" to report.potentialDisturbance,
             "manageConsiderations" to report.manageConsiderations,
+            "recommendations" to report.recommendations,
             "otherComments" to report.otherComments
         )
 

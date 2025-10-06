@@ -35,7 +35,7 @@ fun VisitDetailsStep(
     var rationaleExpanded by remember { mutableStateOf(false) }
     val rationaleSuggestions = listOf("Visitation", "WNS/bats", "Gen Bio", "Cultural")
 
-    // NEW: Organization dropdown state + options
+    // Organization dropdown state + options
     var orgExpanded by remember { mutableStateOf(false) }
     val organizationOptions = remember {
         listOf(
@@ -83,7 +83,7 @@ fun VisitDetailsStep(
     Column(modifier = Modifier.padding(16.dp)) {
         OutlinedTextField(
             value = initialData.mssAcc,
-            onValueChange = { onDetailsChanged(initialData.copy(mssAcc = it)) },
+            onValueChange = { input -> onDetailsChanged(initialData.copy(mssAcc = input.uppercase(Locale.US))) },
             label = { Text("MSS ACC #") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -152,9 +152,7 @@ fun VisitDetailsStep(
             modifier = Modifier.fillMaxWidth()
         )
 
-        // ────────────────────────────────────────────────────────────────
-        // NEW: Organization searchable dropdown / recommendation menu
-        // ────────────────────────────────────────────────────────────────
+        // Organization searchable dropdown / recommendation menu
         ExposedDropdownMenuBox(
             expanded = orgExpanded,
             onExpandedChange = { orgExpanded = !orgExpanded }

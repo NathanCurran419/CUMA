@@ -1,4 +1,3 @@
-// File: ui.report/HomeScreen.kt  (contains ReportFormScreen)
 package com.example.crfcavemonitor.ui.report
 
 import androidx.compose.runtime.*
@@ -72,14 +71,14 @@ fun ReportFormScreen(
                     currentDisturbance = existingReport.currentDisturbance,
                     potentialDisturbance = existingReport.potentialDisturbance,
                     managementConsiderations = existingReport.manageConsiderations,
-                    recommendations = "",
+                    recommendations = existingReport.recommendations,
                     otherComments = existingReport.otherComments
                 )
             } else UseMonitoringFormData()
         )
     }
 
-    // 🔔 Dialog state
+    // Dialog state
     var showSaveConfirm by remember { mutableStateOf(false) }
     var showExitConfirm by remember { mutableStateOf(false) }
     var showMissingCaveName by remember { mutableStateOf(false) } // << NEW: missing cave name dialog
@@ -182,7 +181,7 @@ fun ReportFormScreen(
         )
     }
 
-    // 🚫 Missing Cave Name
+    // Missing Cave Name
     if (showMissingCaveName) {
         AlertDialog(
             onDismissRequest = { showMissingCaveName = false },
@@ -227,6 +226,7 @@ fun ReportFormScreen(
                             potentialDisturbance = useMonitoringData.potentialDisturbance,
                             manageConsiderations = useMonitoringData.managementConsiderations,
                             otherComments = useMonitoringData.otherComments,
+                            recommendations = useMonitoringData.recommendations,
                             location = visitDetails.location
                         )
 

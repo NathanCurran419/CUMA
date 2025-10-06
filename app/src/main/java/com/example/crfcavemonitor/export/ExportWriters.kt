@@ -399,6 +399,7 @@ fun buildStyledPdf(
         val other = use["otherComments"].orEmpty()
 
         if (management.isNotBlank()) drawLabeledParagraph("Management Considerations", management)
+        if (recommendations.isNotBlank()) drawLabeledParagraph("Recommendations", recommendations)
         if (other.isNotBlank()) drawLabeledParagraph("Other Comments", other)
     }
 

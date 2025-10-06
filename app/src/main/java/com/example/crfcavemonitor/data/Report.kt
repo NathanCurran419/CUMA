@@ -27,6 +27,7 @@ data class Report(
     val currentDisturbance: String,
     val potentialDisturbance: String,
     val manageConsiderations: String,
+    val recommendations: String,
     val otherComments: String,
     val location: String
 )
