@@ -17,13 +17,13 @@ class ExportRepository(
     private val dateTimeFmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
 
     suspend fun buildPayload(reportId: Long): ExportPayload {
-        // Direct DAO call now that getById is implemented
         val report = reportDao.getById(reportId)
 
         val visitRow = mapOf(
             "mssAcc" to report.mssAcc,
             "caveName" to report.caveName,
-            "ownerUnit" to report.ownerUnit,
+            "owner" to report.owner,
+            "unit" to report.unit,
             "monitorDate" to dateFmt.format(report.monitorDate),
             "rationale" to report.rationale,
             "areaMonitored" to report.areaMonitored,
@@ -49,6 +49,7 @@ class ExportRepository(
 
         val bioRows = speciesDao.getByReport(reportId).map { s ->
             mapOf(
+                "id" to (s.speciesId?.toString().orEmpty()),
                 "speciesName" to s.speciesName,
                 "count" to s.count.toString(),
                 "notes" to s.notes
@@ -76,9 +77,6 @@ class ExportRepository(
     }
 }
 
-/**
- * to build ExportRepository with the AppDatabase instance.
- */
 fun ExportRepository(context: Context): ExportRepository {
     val db = AppDatabase.getDatabase(context)
     return ExportRepository(db.reportDao(), db.speciesCountDao(), db.photoDao())

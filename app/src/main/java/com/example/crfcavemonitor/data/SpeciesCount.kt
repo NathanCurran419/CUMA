@@ -2,6 +2,7 @@
 
 package com.example.crfcavemonitor.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -9,6 +10,8 @@ import androidx.room.PrimaryKey
 data class SpeciesCount(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val reportId: Long,
+    @ColumnInfo(name = "speciesId")
+    val speciesId: Long?,
     val speciesName: String,
     val count: Int,
     val notes: String

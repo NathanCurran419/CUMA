@@ -16,43 +16,152 @@ import android.text.StaticLayout
 import android.text.TextPaint
 
 // ────────────────────────────────────────────────────────────────────────────────
-// CSV BUILDER + WRITERS
+// BIO MONITORING CSV (one row per species)
 // ────────────────────────────────────────────────────────────────────────────────
+
+private val BIO_MONITORING_HEADERS = listOf(
+    "SpNum",            // species id number
+    "Common Name",      // speciesName in your payload
+    "Number Observed",  // count
+    "Comments"          // notes
+)
+
+fun buildBioMonitoringCsv(p: ExportPayload): String {
+    val sb = StringBuilder()
+    // header
+    sb.append(BIO_MONITORING_HEADERS.joinToString(",") { it.csvEscape() }).append('\n')
+
+    // rows
+    for (r in p.bioRows) {
+        val id    = (r["id"] ?: "").trim()
+        val name  = (r["speciesName"] ?: "").trim()
+        val count = (r["count"] ?: "").trim()
+        val notes = (r["notes"] ?: "").trim()
+
+        val row = listOf(id, name, count, notes)
+        sb.append(row.joinToString(",") { it.csvEscape() }).append('\n')
+    }
+    return sb.toString()
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Use Monitoring MCD Compatible CSV BUILDER + WRITERS
+// ────────────────────────────────────────────────────────────────────────────────
+private val MSS_USE_MONITORING_HEADERS = listOf(
+    "Accession #",
+    "Archaeological looting",
+    "Area monitored",
+    "Camping",
+    "Cave",
+    "Current Disturbance",
+    "Date Entered",
+    "District/Unit",
+    "Fires",
+    "Graffiti",
+    "Monitor Date",
+    "Monitored by",
+    "New Record",
+    "Organization",
+    "Other Comments",
+    "Other Considerations",
+    "Owner",
+    "Photo subjects",
+    "Potential Disturbance",
+    "Rationale",
+    "Recommendations for Management",
+    "Speleothem Vandalism",
+    "Trash",
+    "Visitation"
+)
+
 fun buildCsv(selection: ExportSelection, p: ExportPayload): String {
-    val includeAll = ExportSection.ALL in selection.sections
-    val out = StringBuilder()
+    return when (selection.csvFormat) {
+        CsvFormat.MCD_USE_MONITORING -> buildUseMonitoringCsv(p)
+        CsvFormat.BIO_MONITORING     -> buildBioMonitoringCsv(p)
+    }
+}
 
-    fun List<Map<String, String>>.keysUnion(): List<String> =
-        fold(LinkedHashSet<String>()) { acc, row -> acc.apply { addAll(row.keys) } }.toList()
+private fun buildUseMonitoringCsv(p: ExportPayload): String {
+    val sb = StringBuilder()
+    sb.append(MSS_USE_MONITORING_HEADERS.joinToString(",") { it.csvEscape() }).append('\n')
+    sb.append(rowForMss(p).joinToString(",") { it.csvEscape() }).append('\n')
+    return sb.toString()
+}
 
-    fun List<Map<String, String>>.toCsv(): String {
-        if (isEmpty()) return ""
-        val headers = keysUnion()
-        val sb = StringBuilder()
-        sb.append(headers.joinToString(",")).append('\n')
-        for (row in this) {
-            val line = headers.joinToString(",") { h ->
-                val v = row[h].orEmpty()
-                if (v.contains(',') || v.contains('"') || v.contains('\n')) {
-                    "\"${v.replace("\"", "\"\"")}\""
-                } else v
-            }
-            sb.append(line).append('\n')
+/* -------------------------- Mapping helpers -------------------------- */
+private fun rowForMss(p: ExportPayload): List<String> {
+    val visit = p.visitRows.firstOrNull().orEmpty()
+    val use   = p.useRows.firstOrNull().orEmpty()
+
+    fun g(map: Map<String,String>, key: String) = map[key]?.trim().orEmpty()
+
+    fun yn(v: String): String = when (v.trim().lowercase(Locale.US)) {
+        "true","1","y","yes"   -> "Yes"
+        "false","0","n","no"   -> "No"
+        else                   -> v
+    }
+
+    fun toMMDDYYYYFromYMD(raw: String): String {
+        if (raw.isBlank()) return ""
+        return try {
+            val inFmt  = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val outFmt = java.text.SimpleDateFormat("MM/dd/yyyy", Locale.US)
+            outFmt.format(inFmt.parse(raw)!!)
+        } catch (_: Throwable) { raw }
+    }
+
+    val dateEntered = java.text.SimpleDateFormat("MM/dd/yyyy", Locale.US).format(Date())
+
+    // Photo subjects from photo captions
+    val photoSubjects = p.photoRows
+        .mapNotNull { it["caption"]?.trim() }
+        .filter { it.isNotBlank() }
+        .joinToString("; ")
+
+    // Build "Other Comments" and append the location if present
+    val otherComments = buildString {
+        append(g(use, "otherComments"))
+        val loc = g(visit, "location")
+        if (loc.isNotBlank()) {
+            if (isNotEmpty()) append("  ")
+            append("[Location: ").append(loc).append("]")
         }
-        return sb.toString()
     }
 
-    fun section(label: String, rows: List<Map<String, String>>) {
-        out.append("# ").append(label).append('\n')
-        out.append(rows.toCsv()).append('\n')
-    }
+    val districtUnit = g(visit, "unit")
 
-    if (includeAll || ExportSection.VISIT in selection.sections) section("Visit", p.visitRows)
-    if (includeAll || ExportSection.USE in selection.sections) section("Use / Human Impact", p.useRows)
-    if (includeAll || ExportSection.BIO in selection.sections) section("Bio", p.bioRows)
-    if (includeAll || ExportSection.PHOTOS in selection.sections) section("Photos", p.photoRows)
+    return listOf(
+        /* Accession #                    */ g(visit, "mssAcc"),
+        /* Archaeological looting         */ yn(g(use, "archaeologicalLooting")),
+        /* Area monitored                 */ g(visit, "areaMonitored"),
+        /* Camping                        */ yn(g(use, "camping")),
+        /* Cave                           */ g(visit, "caveName"),
+        /* Current Disturbance            */ g(use, "currentDisturbance"),
+        /* Date Entered                   */ dateEntered,
+        /* District/Unit                  */ districtUnit,
+        /* Fires                          */ yn(g(use, "fires")),
+        /* Graffiti                       */ yn(g(use, "graffiti")),
+        /* Monitor Date                   */ toMMDDYYYYFromYMD(g(visit, "monitorDate")),
+        /* Monitored by                   */ g(visit, "monitoredBy"),
+        /* New Record                     */ "", // change to "" if you prefer blank
+        /* Organization                   */ g(visit, "organization"),
+        /* Other Comments                 */ otherComments,
+        /* Other Considerations           */ g(use, "manageConsiderations"), // = Management Considerations
+        /* Owner                          */ g(visit, "owner"),
+        /* Photo subjects                 */ photoSubjects,
+        /* Potential Disturbance          */ g(use, "potentialDisturbance"),
+        /* Rationale                      */ g(visit, "rationale"),
+        /* Recommendations for Management */ g(use, "recommendations"),
+        /* Speleothem Vandalism           */ yn(g(use, "speleothemVandalism")),
+        /* Trash                          */ yn(g(use, "litter")), // your field is "litter"
+        /* Visitation                     */ g(use, "visitation")
+    )
+}
 
-    return out.toString()
+private fun String.csvEscape(): String {
+    if (isEmpty()) return this
+    val needsQuotes = any { it == ',' || it == '"' || it == '\n' || it == '\r' }
+    return if (!needsQuotes) this else "\"" + replace("\"", "\"\"") + "\""
 }
 
 fun writeTextToUri(resolver: ContentResolver, uri: Uri, text: String) {
@@ -200,9 +309,6 @@ fun buildStyledPdf(
     fun drawKeyValueGrid(pairs: List<Pair<String, String>>) {
         val colW = CONTENT_W / 2f
         val keyPaint = Paint(textPaint).apply { isFakeBoldText = true }
-
-        // Width reserved for the "Key:" label inside a column.
-        // Longest left label in your data is often "Management Considerations".
         val maxKeyLabel = "Management Considerations:"
         val keyLabelW = (keyPaint.measureText(maxKeyLabel) + 8f).coerceAtMost(colW * 0.55f)
 
@@ -281,20 +387,41 @@ fun buildStyledPdf(
         y = headerBottom
 
         for (row in rows) {
-            val rowNeeded = lineHeight + 6f
+            // 1) Measure/wrap each cell to find how many lines it needs
+            val wrappedPerCell = ArrayList<List<String>>(row.size)
+            var maxLinesInRow = 1
+            for ((i, cell) in row.withIndex()) {
+                val cw = colWidths[i]
+                val clipped = cell.replace("\n", " ").take(300)
+                val lines = wrapText(clipped, textPaint, cw - 8f)
+                wrappedPerCell.add(lines)
+                if (lines.size > maxLinesInRow) maxLinesInRow = lines.size
+            }
+
+            // 2) Compute required height for this row (all columns)
+            val rowNeeded = (lineHeight * maxLinesInRow) + 6f
             ensureSpace(rowNeeded)
+
+            // 3) Draw row background/borders and the wrapped text for each cell
             x = MARGIN
             val top = y
-            val bottom = y + lineHeight + 6f
-            for ((i, cell) in row.withIndex()) {
+            val bottom = y + rowNeeded
+            for (i in row.indices) {
                 val cw = colWidths[i]
                 val rect = RectF(x, top, x + cw, bottom)
                 canvas?.drawRect(rect, tableBorder)
-                val clipped = cell.replace("\n", " ").take(300)
-                val display = ellipsizeToWidth(clipped, textPaint, cw - 8f)
-                canvas?.drawText(display, x + 4f, y + lineHeight, textPaint)
+
+                // Draw each wrapped line in the cell
+                var localY = y + lineHeight
+                for (ln in wrappedPerCell[i]) {
+                    canvas?.drawText(ln, x + 4f, localY, textPaint)
+                    localY += lineHeight
+                }
+
                 x += cw
             }
+
+            // 4) Advance to next row
             y = bottom
         }
         y += 8f
@@ -352,7 +479,7 @@ fun buildStyledPdf(
     }
 
     // ---- Document flow ----
-    newPage() // init page/canvas
+    newPage()
 
     val includeAll = ExportSection.ALL in selection.sections
 
@@ -363,7 +490,8 @@ fun buildStyledPdf(
         val visitPairs = listOf(
             "Cave Name" to (visit["caveName"] ?: ""),
             "MSS #" to (visit["mssAcc"] ?: ""),
-            "Owner/Unit" to (visit["ownerUnit"] ?: ""),
+            "Owner" to (visit["owner"] ?: ""),
+            "District or Unit" to (visit["unit"] ?: ""),
             "Monitor Date" to (visit["monitorDate"] ?: ""),
             "Organization" to (visit["organization"] ?: ""),
             "Monitored By" to (visit["monitoredBy"] ?: ""),
@@ -406,15 +534,16 @@ fun buildStyledPdf(
 
     if ((includeAll || ExportSection.BIO in selection.sections) && p.bioRows.isNotEmpty()) {
         drawSectionTitle("Bio")
-        val headers = listOf("Species", "Count", "Notes")
+        val headers = listOf("SpNum","Species", "Count", "Notes")
         val rows = p.bioRows.map { r ->
             listOf(
+                r["id"].orEmpty(),
                 r["speciesName"].orEmpty(),
                 r["count"].orEmpty(),
                 r["notes"].orEmpty()
             )
         }
-        val weights = listOf(1.4f, 0.6f, 0.8f, 2.2f)
+        val weights = listOf(0.6f, 1.6f, 0.6f, 1.2f)
         drawTable(headers, rows, weights, lineHeight = 16f)
     }
 
@@ -431,16 +560,11 @@ fun buildStyledPdf(
 // Helpers
 // ────────────────────────────────────────────────────────────────────────────────
 
-/** Compute a reliable single-line height for a paint. */
 private fun lineHeight(paint: Paint): Float {
     val fm = paint.fontMetrics
     return (fm.descent - fm.ascent)
 }
 
-/**
- * Draw a wrapped paragraph between [left, right] with Android's text layout.
- * Returns the total height consumed.
- */
 private fun drawParagraph(
     canvas: Canvas,
     text: CharSequence,

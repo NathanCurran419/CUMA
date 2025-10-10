@@ -6,7 +6,8 @@ import java.util.Date
 data class VisitDetailsFormData(
     val mssAcc: String,
     val caveName: String,
-    val ownerUnit: String,
+    val owner: String,
+    val unit: String,
     val monitorDate: Date,
     val rationale: String,
     val areaMonitored: String,

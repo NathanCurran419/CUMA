@@ -52,7 +52,7 @@ import com.example.crfcavemonitor.R
 private const val ROUTE_EXPORT = "export/{reportId}"
 private fun routeExport(reportId: Long) = "export/$reportId"
 
-// ---- Optional: put your repo URL here (or inject from BuildConfig) ----
+// Github project URL
 private const val GITHUB_URL: String = "https://github.com/NathanCurran419/CUMA"
 
 @Composable
@@ -149,7 +149,7 @@ fun AppNav(
             val reportId = backStackEntry.arguments?.getLong("reportId")
             val report = reports.find { it.id == reportId }
 
-            // Load species & photos asynchronously (same pattern you used for edit)
+            // Load species & photos asynchronously
             val species by produceState(initialValue = emptyList<SpeciesCount>(), reportId) {
                 value = if (reportId != null) onLoadSpecies(reportId) else emptyList()
             }

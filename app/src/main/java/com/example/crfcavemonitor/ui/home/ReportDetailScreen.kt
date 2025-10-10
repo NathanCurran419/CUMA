@@ -110,7 +110,8 @@ fun ReportDetailScreen(
                 SectionHeader("Visit Details")
                 KeyValueGrid(
                     pairs = listOf(
-                        "Owner/Unit" to report.ownerUnit,
+                        "Owner" to report.owner,
+                        "District or Unit" to report.unit,
                         "Organization" to report.organization,
                         "Monitored By" to report.monitoredBy,
                         "Area Monitored" to report.areaMonitored,

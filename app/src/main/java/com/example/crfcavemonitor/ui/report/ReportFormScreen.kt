@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.activity.compose.BackHandler
 import com.example.crfcavemonitor.R
 import com.example.crfcavemonitor.data.Photo
 import com.example.crfcavemonitor.data.Report
@@ -25,63 +26,96 @@ fun ReportFormScreen(
 ) {
     var step by remember { mutableStateOf(0) }
 
-    // Visit details
-    var visitDetails by remember {
-        mutableStateOf(
-            if (existingReport != null) {
-                VisitDetailsFormData(
-                    mssAcc = existingReport.mssAcc,
-                    caveName = existingReport.caveName,
-                    ownerUnit = existingReport.ownerUnit,
-                    monitorDate = existingReport.monitorDate,
-                    rationale = existingReport.rationale,
-                    areaMonitored = existingReport.areaMonitored,
-                    organization = existingReport.organization,
-                    monitoredBy = existingReport.monitoredBy,
-                    location = existingReport.location
-                )
-            } else {
-                VisitDetailsFormData("", "", "", Date(), "", "", "", "", "")
-            }
-        )
+    // ----------------------------
+    // Initial snapshots (for dirty check)
+    // ----------------------------
+    val initialVisitDetails = remember(existingReport) {
+        if (existingReport != null) {
+            VisitDetailsFormData(
+                mssAcc = existingReport.mssAcc,
+                caveName = existingReport.caveName,
+                owner = existingReport.owner,
+                unit = existingReport.unit,
+                monitorDate = existingReport.monitorDate,
+                rationale = existingReport.rationale,
+                areaMonitored = existingReport.areaMonitored,
+                organization = existingReport.organization,
+                monitoredBy = existingReport.monitoredBy,
+                location = existingReport.location
+            )
+        } else {
+            VisitDetailsFormData("", "", "", "", Date(), "", "", "", "", "")
+        }
+    }
+    val initialSpeciesList = remember(existingSpecies) { existingSpecies }
+    val initialPhotoItems = remember(existingPhotos) { existingPhotos.map { PhotoItem(it.uri.toUri(), it.caption) } }
+    val initialUseMonitoring = remember(existingReport) {
+        if (existingReport != null) {
+            UseMonitoringFormData(
+                publicUseStates = mapOf(
+                    "Visitation" to existingReport.visitation,
+                    "Litter/Trash" to existingReport.litter,
+                    "Speleothem Vandalism" to existingReport.speleothemVandalism,
+                    "Graffiti" to existingReport.graffiti,
+                    "Archeological Looting" to existingReport.archaeologicalLooting,
+                    "Fires" to existingReport.fires,
+                    "Camping" to existingReport.camping
+                ),
+                currentDisturbance = existingReport.currentDisturbance,
+                potentialDisturbance = existingReport.potentialDisturbance,
+                managementConsiderations = existingReport.manageConsiderations,
+                recommendations = existingReport.recommendations,
+                otherComments = existingReport.otherComments
+            )
+        } else UseMonitoringFormData()
     }
 
-    // Species list
-    var speciesList by remember { mutableStateOf(existingSpecies) }
+    // ----------------------------
+    // Live editable state
+    // ----------------------------
+    var visitDetails by remember { mutableStateOf(initialVisitDetails) }
+
+    var speciesList by remember { mutableStateOf(initialSpeciesList) }
     LaunchedEffect(existingSpecies) { speciesList = existingSpecies }
 
-    // Photo list (kept in Compose state)
-    var photoList by remember { mutableStateOf(existingPhotos.map { PhotoItem(it.uri.toUri(), it.caption) }) }
+    var photoList by remember { mutableStateOf(initialPhotoItems) }
     LaunchedEffect(existingPhotos) { photoList = existingPhotos.map { PhotoItem(it.uri.toUri(), it.caption) } }
 
-    // Use / Impact data
-    var useMonitoringData by remember {
+    var useMonitoringData by remember { mutableStateOf(initialUseMonitoring) }
+
+    // ----------------------------
+    // Dialog state
+    // ----------------------------
+    var showSaveConfirm by remember { mutableStateOf(false) }
+    var showExitConfirm by remember { mutableStateOf(false) }
+    var showMissingCaveName by remember { mutableStateOf(false) }
+    var showBackConfirm by remember { mutableStateOf(false) } // NEW: for system back
+
+    // ----------------------------
+    // Dirty check (prompt only if changed)
+    // ----------------------------
+    val isDirty by remember(
+        visitDetails, speciesList, photoList, useMonitoringData,
+        initialVisitDetails, initialSpeciesList, initialPhotoItems, initialUseMonitoring
+    ) {
         mutableStateOf(
-            if (existingReport != null) {
-                UseMonitoringFormData(
-                    publicUseStates = mapOf(
-                        "Visitation" to existingReport.visitation,
-                        "Litter/Trash" to existingReport.litter,
-                        "Speleothem Vandalism" to existingReport.speleothemVandalism,
-                        "Graffiti" to existingReport.graffiti,
-                        "Archeological Looting" to existingReport.archaeologicalLooting,
-                        "Fires" to existingReport.fires,
-                        "Camping" to existingReport.camping
-                    ),
-                    currentDisturbance = existingReport.currentDisturbance,
-                    potentialDisturbance = existingReport.potentialDisturbance,
-                    managementConsiderations = existingReport.manageConsiderations,
-                    recommendations = existingReport.recommendations,
-                    otherComments = existingReport.otherComments
-                )
-            } else UseMonitoringFormData()
+            visitDetails != initialVisitDetails ||
+                    speciesList != initialSpeciesList ||
+                    photoList != initialPhotoItems ||
+                    useMonitoringData != initialUseMonitoring
         )
     }
 
-    // Dialog state
-    var showSaveConfirm by remember { mutableStateOf(false) }
-    var showExitConfirm by remember { mutableStateOf(false) }
-    var showMissingCaveName by remember { mutableStateOf(false) } // << NEW: missing cave name dialog
+    // ----------------------------
+    // Intercept system back (gesture/button)
+    // ----------------------------
+    BackHandler(enabled = true) {
+        if (isDirty) {
+            showBackConfirm = true
+        } else {
+            onBack()
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -209,7 +243,8 @@ fun ReportFormScreen(
                             id = existingReport?.id ?: 0,
                             mssAcc = visitDetails.mssAcc,
                             caveName = visitDetails.caveName,
-                            ownerUnit = visitDetails.ownerUnit,
+                            owner = visitDetails.owner,
+                            unit = visitDetails.unit,
                             monitorDate = visitDetails.monitorDate,
                             rationale = visitDetails.rationale,
                             areaMonitored = visitDetails.areaMonitored,
@@ -235,7 +270,6 @@ fun ReportFormScreen(
                             sp.copy(id = sp.id, reportId = report.id, notes = sp.notes)
                         }
 
-                        // Photos from current state, preserve IDs/timestamps if existing
                         val photosWithIds = photoList.map { item ->
                             val existing = existingPhotos.find {
                                 it.uri == item.uri.toString() && it.caption == item.caption
@@ -257,6 +291,26 @@ fun ReportFormScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showSaveConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // Confirm leaving via system back (previous screen)
+    if (showBackConfirm) {
+        AlertDialog(
+            onDismissRequest = { showBackConfirm = false },
+            title = { Text("Discard changes?") },
+            text = { Text("You have unsaved changes. Do you want to leave this page?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showBackConfirm = false
+                        onBack()
+                    }
+                ) { Text("Leave") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBackConfirm = false }) { Text("Stay") }
             }
         )
     }

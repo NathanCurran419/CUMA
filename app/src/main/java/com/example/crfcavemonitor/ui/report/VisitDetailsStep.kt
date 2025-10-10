@@ -94,11 +94,21 @@ fun VisitDetailsStep(
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
-            value = initialData.ownerUnit,
-            onValueChange = { onDetailsChanged(initialData.copy(ownerUnit = it)) },
-            label = { Text("Owner / Unit") },
+            value = initialData.owner,
+            onValueChange = { onDetailsChanged(initialData.copy(owner = it)) },
+            label = { Text("Owner") },
             modifier = Modifier.fillMaxWidth()
         )
+
+        Spacer(Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = initialData.unit,
+            onValueChange = { onDetailsChanged(initialData.copy(unit = it)) },
+            label = { Text("District or Unit") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
         OutlinedTextField(
             value = dateFormat.format(initialData.monitorDate),
             onValueChange = {},
@@ -109,7 +119,6 @@ fun VisitDetailsStep(
             enabled = false
         )
 
-        // Rationale (existing searchable dropdown)
         ExposedDropdownMenuBox(
             expanded = rationaleExpanded,
             onExpandedChange = { rationaleExpanded = !rationaleExpanded }

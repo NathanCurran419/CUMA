@@ -13,8 +13,6 @@ fun ContentResolver.takePersistablePermissionIfPossible(uri: Uri) {
             Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
         )
     } catch (_: SecurityException) {
-        // Not persistable or already persisted — ignore.
     } catch (_: IllegalArgumentException) {
-        // Some providers don't support persistable perms — ignore.
     }
 }

@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.example.crfcavemonitor.data.SpeciesCount
 import androidx.compose.ui.Alignment
 
+
 @Composable
 fun BioInventoryStep(
     speciesList: List<SpeciesCount>,
@@ -38,10 +39,12 @@ fun BioInventoryStep(
                 val newList = tempSpeciesList.toMutableList()
                 newList.add(
                     SpeciesCount(
+                        // Row PK 'id' is auto; DO NOT set it to a species master id.
                         reportId = 0,
+                        speciesId = null,         // ← unknown by default
                         speciesName = "",
                         count = 0,
-                        notes = "" // ensure new rows always have notes
+                        notes = ""                // ensure new rows always have notes
                     )
                 )
                 onSpeciesListChanged(newList)
@@ -61,8 +64,8 @@ fun SpeciesRow(
     var name by remember { mutableStateOf(species.speciesName) }
     var count by remember { mutableStateOf(species.count) }
     var expanded by remember { mutableStateOf(false) }
-    var showNoteField by remember { mutableStateOf(species.notes.isNotBlank()) }
-    var noteText by remember { mutableStateOf(species.notes) } // start with persisted notes
+    var showNoteField by remember { mutableStateOf(species.notes.isNullOrBlank().not()) }
+    var noteText by remember { mutableStateOf(species.notes ?: "") } // start with persisted notes
     var noteDropdownExpanded by remember { mutableStateOf(false) }
 
     val isEntered = name.isNotBlank()
@@ -70,9 +73,7 @@ fun SpeciesRow(
     val suggestions = if (name.isBlank()) {
         allSpecies
     } else {
-        allSpecies.filter {
-            it.name.contains(name, ignoreCase = true)
-        }
+        allSpecies.filter { it.name.contains(name, ignoreCase = true) }
     }
 
     val noteSuggestions = listOf(
@@ -81,7 +82,6 @@ fun SpeciesRow(
         "White nose syndrome positive",
         "By signs"
     )
-
     val filteredNotes = if (noteText.isBlank()) noteSuggestions else noteSuggestions.filter {
         it.contains(noteText, ignoreCase = true)
     }
@@ -95,22 +95,36 @@ fun SpeciesRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            // Display the ROW PK for reference; do NOT overload it with species master id
             Text(
-                text = if (species.speciesName.isBlank()) "New" else "#${species.id}",
-                modifier = Modifier.width(50.dp)
+                text = when {
+                    species.speciesName.isBlank() -> "NA"
+                    species.speciesId != null     -> "Sp# ${species.speciesId}"
+                    else                          -> "Sp# —"
+                },
+                modifier = Modifier.width(70.dp)
             )
 
             Column(Modifier.weight(1f)) {
+                // Species name input + suggestion dropdown
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = !expanded }
                 ) {
                     OutlinedTextField(
                         value = name,
-                        onValueChange = {
-                            name = it
+                        onValueChange = { typed ->
+                            name = typed
                             expanded = true
-                            onUpdate(species.copy(speciesName = it, notes = noteText))
+
+                            // User is typing free text -> keep speciesId = null.
+                            onUpdate(
+                                species.copy(
+                                    speciesName = typed,
+                                    speciesId = null,
+                                    notes = noteText
+                                )
+                            )
                         },
                         label = { Text("Species Name") },
                         modifier = Modifier
@@ -129,12 +143,13 @@ fun SpeciesRow(
                             DropdownMenuItem(
                                 text = { Text(option.name) },
                                 onClick = {
+                                    // User picks a known species -> set speciesId to the master id
                                     name = option.name
                                     expanded = false
                                     onUpdate(
                                         species.copy(
                                             speciesName = option.name,
-                                            id = option.id.toLong(),
+                                            speciesId = option.id.toLong(),   // ← THIS is the FK to master species
                                             notes = noteText
                                         )
                                     )
@@ -152,15 +167,16 @@ fun SpeciesRow(
                             count--
                             onUpdate(species.copy(count = count, notes = noteText))
                         }
-                    }) {
-                        Text("-")
-                    }
+                    }) { Text("-") }
+
                     OutlinedTextField(
                         value = count.toString(),
                         onValueChange = {
-                            val safeCount = it.toIntOrNull() ?: count
-                            count = safeCount
-                            onUpdate(species.copy(count = count, notes = noteText))
+                            val safe = it.toIntOrNull()
+                            if (safe != null) {
+                                count = safe
+                                onUpdate(species.copy(count = count, notes = noteText))
+                            }
                         },
                         modifier = Modifier
                             .width(60.dp)
@@ -171,12 +187,11 @@ fun SpeciesRow(
                             imeAction = ImeAction.Done
                         )
                     )
+
                     IconButton(onClick = {
                         count++
                         onUpdate(species.copy(count = count, notes = noteText))
-                    }) {
-                        Text("+")
-                    }
+                    }) { Text("+") }
                 }
             }
         }
@@ -217,7 +232,7 @@ fun SpeciesRow(
                                 onClick = {
                                     noteText = suggestion
                                     noteDropdownExpanded = false
-                                    onUpdate(species.copy(notes = noteText)) // persist notes
+                                    onUpdate(species.copy(notes = noteText))
                                 }
                             )
                         }

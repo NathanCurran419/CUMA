@@ -14,7 +14,7 @@ fun ImpactAssessmentStep(
     formData: UseMonitoringFormData,
     onFormDataChanged: (UseMonitoringFormData) -> Unit
 ) {
-    val publicUseLevels = listOf("None", "Some", "Many/Much")
+    val publicUseLevels = listOf("None", "Some", "Much")
     val disturbanceLevels = listOf("None", "Little", "Moderate", "High")
 
     Column(
